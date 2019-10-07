@@ -1,12 +1,17 @@
 package com.example.googlepaystripe;
 
 import android.app.Activity;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 
+import com.google.android.gms.wallet.CardRequirements;
+import com.google.android.gms.wallet.PaymentMethodTokenizationParameters;
+import com.google.android.gms.wallet.TransactionInfo;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
@@ -26,11 +31,14 @@ import com.google.android.gms.wallet.PaymentsClient;
 import com.google.android.gms.wallet.Wallet;
 import com.google.android.gms.wallet.WalletConstants;
 import com.stripe.android.GooglePayConfig;
+import com.stripe.android.PaymentConfiguration;
 import com.stripe.android.model.Token;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.Arrays;
 
 
 public class PayWithGoogleActivity extends AppCompatActivity {
@@ -56,8 +64,7 @@ public class PayWithGoogleActivity extends AppCompatActivity {
             //payWithGoogle();
 
             String t = "";
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -65,18 +72,15 @@ public class PayWithGoogleActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        //.setAction("Action", null).show();
                 payWithGoogle();
             }
         });
     }
 
-    private void InitPaymentClient(){
-        this.paymentsClient = Wallet.getPaymentsClient(this,
-                new Wallet.WalletOptions.Builder()
-                        .setEnvironment(WalletConstants.ENVIRONMENT_TEST)
-                        .build());
+    private void InitPaymentClient() {
+        paymentsClient = Wallet.getPaymentsClient(this, new Wallet.WalletOptions.Builder()
+                .setEnvironment(WalletConstants.ENVIRONMENT_TEST)
+                .build());
     }
 
     private void isReadyToPay() {
@@ -103,84 +107,51 @@ public class PayWithGoogleActivity extends AppCompatActivity {
         );
     }
 
-    @NonNull
-    private PaymentDataRequest createPaymentDataRequest() {
-        // error -> https://stripe.dev/stripe-android/com/stripe/android/GooglePayConfig.html#getTokenizationSpecification
+    private PaymentDataRequest createPaymentDataRequestNew() {
 
-        JSONObject cardPaymentMethod = null;
-        try {
-            JSONObject tokenizationSpec =
-                    new GooglePayConfig("pk_test_kyxxSBjKbFizfgxlqA3lHABq")
-                            .getTokenizationSpecification();
-            cardPaymentMethod = new JSONObject()
-                    .put("type", "CARD")
-                    .put(
-                            "parameters",
-                            new JSONObject()
-                                    .put("allowedAuthMethods", new JSONArray()
-                                            .put("PAN_ONLY")
-                                            .put("CRYPTOGRAM_3DS"))
-                                    .put("allowedCardNetworks",
-                                            new JSONArray()
-                                                    .put("AMEX")
-                                                    .put("DISCOVER")
-                                                    .put("JCB")
-                                                    .put("MASTERCARD")
-                                                    .put("VISA"))
 
-                                    // require billing address
-                                    .put("billingAddressRequired", true)
-                                    .put(
-                                            "billingAddressParameters",
-                                            new JSONObject()
-                                                    // require full billing address
-                                                    .put("format", "FULL")
+//        amount = amount.replace(".", "");
 
-                                                    // require phone number
-                                                    .put("phoneNumberRequired", true)
-                                    )
-                    )
-                    .put("tokenizationSpecification", tokenizationSpec);
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        PaymentDataRequest.Builder request =
+                PaymentDataRequest.newBuilder()
+                        .setTransactionInfo(
+                                TransactionInfo.newBuilder()
+                                        .setTotalPriceStatus(WalletConstants.TOTAL_PRICE_STATUS_FINAL)
+                                        .setTotalPrice("0.50")
+                                        .setCurrencyCode("USD")
+                                        .build())
+                        .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_CARD)
+                        .addAllowedPaymentMethod(WalletConstants.PAYMENT_METHOD_TOKENIZED_CARD)
+                        .setCardRequirements(
+                                CardRequirements.newBuilder()
+                                        .addAllowedCardNetworks(Arrays.asList(
+                                                WalletConstants.CARD_NETWORK_AMEX,
+                                                WalletConstants.CARD_NETWORK_DISCOVER,
+                                                WalletConstants.CARD_NETWORK_VISA,
+                                                WalletConstants.CARD_NETWORK_MASTERCARD))
+                                        .build());
 
-        // create PaymentDataRequest
-        JSONObject paymentDataRequest = new JSONObject();
-        try {
-            paymentDataRequest.put("apiVersion", 2);
-            paymentDataRequest.put("apiVersionMinor", 0);
-            paymentDataRequest.put("allowedPaymentMethods",
-                    new JSONArray()
-                            .put(cardPaymentMethod));
-            paymentDataRequest.put("transactionInfo",
-                    new JSONObject()
-                            .put("totalPrice", "0.01")
-                            .put("totalPriceStatus", "FINAL")
-                            .put("currencyCode", "USD")
-            );
-            paymentDataRequest.put("merchantInfo",
-                    new JSONObject()
-                            .put("merchantName", "Example Merchant")
-                            .put("emailRequired", true) // require email address
-            );
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        request.setPaymentMethodTokenizationParameters(createTokenizationParametersNew());
+        return request.build();
+    }
 
-        return PaymentDataRequest.fromJson(paymentDataRequest.toString());
+    private PaymentMethodTokenizationParameters createTokenizationParametersNew() {
+        return PaymentMethodTokenizationParameters.newBuilder()
+                .setPaymentMethodTokenizationType(WalletConstants.PAYMENT_METHOD_TOKENIZATION_TYPE_PAYMENT_GATEWAY)
+                .addParameter("gateway", "stripe")
+                .addParameter("stripe:publishableKey", "pk_test_kyxxSBjKbFizfgxlqA3lHABq")
+                .addParameter("gatewayMerchantId", "16153203921301195529")
+                .addParameter("stripe:version", "2018-11-08")
+                .build();
     }
 
     private void payWithGoogle() {
-        try {
-            PaymentDataRequest pmtDataReq = createPaymentDataRequest();
+        PaymentDataRequest request = createPaymentDataRequestNew();
+        if (request != null) {
             AutoResolveHelper.resolveTask(
-                    paymentsClient.loadPaymentData(pmtDataReq),
+                    paymentsClient.loadPaymentData(request),
                     this,
-                    LOAD_PAYMENT_DATA_REQUEST_CODE
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
+                    LOAD_PAYMENT_DATA_REQUEST_CODE);
         }
     }
 
@@ -221,6 +192,14 @@ public class PayWithGoogleActivity extends AppCompatActivity {
                                 // API to finish the charge.
                                 // chargeToken(stripeToken.getId());
                                 String tokenId = stripeToken.getId();
+
+                                new AlertDialog.Builder(this).setTitle("Google Pay token is: ").setMessage(tokenId).setCancelable(false).setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        dialog.dismiss();
+
+                                    }
+                                }).show();
 
                             }
                             break;
