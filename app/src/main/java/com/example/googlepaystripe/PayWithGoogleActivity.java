@@ -141,7 +141,7 @@ public class PayWithGoogleActivity extends AppCompatActivity {
                 .addParameter("gateway", "stripe")
                 .addParameter("stripe:publishableKey", "pk_test_kyxxSBjKbFizfgxlqA3lHABq")
                 .addParameter("gatewayMerchantId", "16153203921301195529")
-                .addParameter("stripe:version", "2018-11-08")
+                .addParameter("stripe:version", "2019-09-09")
                 .build();
     }
 
