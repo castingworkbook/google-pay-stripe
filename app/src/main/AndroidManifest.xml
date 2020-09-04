@@ -12,9 +12,8 @@
         <activity
             android:name=".PayWithGoogleActivity"
             android:label="@string/title_activity_pay_with_google"
-            android:theme="@style/AppTheme.NoActionBar"
             android:parentActivityName=".MainActivity"
-            >
+            android:theme="@style/AppTheme.NoActionBar">
         </activity>
         <activity
             android:name=".MainActivity"
